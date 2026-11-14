@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>多单元八木天线计算器</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #2c3e50; color: #ecf0f1; }
+        .box { background: #34495e; padding: 20px; border-radius: 8px; max-width: 500px; margin: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        h2 { text-align: center; color: #3498db; }
+        .input-group { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        input { width: 60%; padding: 10px; border-radius: 4px; border: none; font-size: 16px; }
+        label { font-size: 16px; line-height: 2.2; }
+        button { width: 100%; padding: 12px; background: #e67e22; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 18px; font-weight: bold; }
+        button:hover { background: #d35400; }
+        #result { margin-top: 20px; background: #2c3e50; padding: 15px; border-radius: 4px; line-height: 1.8; }
+        .element { border-bottom: 1px dashed #7f8c8d; padding: 8px 0; }
+        .highlight { color: #e74c3c; font-weight: bold; }
+        .dir { color: #2ecc71; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>📻 多单元八木计算器</h2>
+        <div class="input-group">
+            <label>中心频率 (MHz):</label>
+            <input type="number" id="freq" value="145.000" step="0.001">
+        </div>
+        <div class="input-group">
+            <label>总单元数 (根):</label>
+            <input type="number" id="elements" value="3" min="2" max="20">
+        </div>
+        <button onclick="calculate()">生成切割尺寸表</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function calculate() {
+            let f = parseFloat(document.getElementById('freq').value);
+            let n = parseInt(document.getElementById('elements').value);
+            
+            if (f <= 0 || n < 2) { alert("请输入有效的频率和单元数 (至少2单元)"); return; }
+            
+            let lambda = 300000 / f; // 波长(mm)
+            
+            // 基础参数 (应用了0.95的缩短系数)
+            let reflector = (lambda / 2) * 1.05 * 0.95; // 反射器
+            let driven = (lambda / 2) * 0.95;           // 有源振子
+            let director = (lambda / 2) * 0.92 * 0.95;  // 引向器基准长度
+            
+            let spacing_ref = lambda * 0.15; // 反射器与有源振子间距
+            let spacing_dir = lambda * 0.12; // 引向器之间的间距
+            
+            let html = `<h3>频率: ${f} MHz | 波长: ${lambda.toFixed(1)} mm</h3>`;
+            
+            // 1. 输出反射器
+            html += `<div class="element"><strong>单元 1 (反射器 - 放最后):</strong> ${reflector.toFixed(1)} mm</div>`;
+            
+            // 2. 输出有源振子
+            html += `<div class="element"><strong>单元 2 (有源振子 - <span class="highlight">需中间切断</span>):</strong> 总长 ${driven.toFixed(1)} mm<br>
+                     <span style="font-size:13px; color:#bdc3c7;">↳ 间距: 距离反射器 ${spacing_ref.toFixed(1)} mm</span></div>`;
+            
+            // 3. 输出引向器 (从3开始，直到n)
+            for (let i = 3; i <= n; i++) {
+                // 引向器越往前，尺寸会略微缩短 (从1.0递减)
+                let dir_offset = 1.0 - ((i - 3) * 0.01); 
+                let current_dir = director * dir_offset;
+                
+                html += `<div class="element"><span class="dir">单元 ${i} (引向器 - 往前排):</span> ${current_dir.toFixed(1)} mm<br>
+                         <span style="font-size:13px; color:#bdc3c7;">↳ 间距: 距离上一个单元 ${spacing_dir.toFixed(1)} mm</span></div>`;
+            }
+            
+            html += `<p style="color:#f1c40f; font-size:14px; margin-top:15px;">* 注：所有振子需互相平行并垂直于主梁。有源振子的缝隙一般留 15mm。</p>`;
+            
+            document.getElementById('result').innerHTML = html;
+        }
+    </script>
+</body>
+</html>

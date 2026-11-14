@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>UV双段八木天线计算器</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #1e1e24; color: #ecf0f1; }
+        .box { background: #2b2b36; padding: 20px; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        h2 { text-align: center; color: #00d2d3; border-bottom: 2px solid #00d2d3; padding-bottom: 10px; }
+        .row { display: flex; gap: 15px; margin-bottom: 15px; }
+        .col { flex: 1; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #bdc3c7; }
+        input { width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #444; background: #1e1e24; color: white; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #0abde3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #0984e3; }
+        .results { display: flex; gap: 20px; margin-top: 20px; }
+        .section { flex: 1; background: #1e1e24; padding: 15px; border-radius: 6px; border-top: 4px solid #00d2d3; }
+        .section h3 { margin-top: 0; color: #feca57; text-align: center; }
+        .item { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #444; font-size: 14px; line-height: 1.6; }
+        .item strong { color: #fff; }
+        .highlight { color: #ff6b6b; font-weight: bold; }
+        .spacing { color: #888; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>📡 UV双段八木天线计算器</h2>
+        <div class="row">
+            <div class="col">
+                <label>V段频率 (MHz) [如 145.260]</label>
+                <input type="number" id="freqV" value="145.260" step="0.001">
+            </div>
+            <div class="col">
+                <label>U段频率 (MHz) [如 435.000]</label>
+                <input type="number" id="freqU" value="435.000" step="0.001">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <label>V段单元数 (推荐 2-4)</label>
+                <input type="number" id="eleV" value="3" min="2" max="6">
+            </div>
+            <div class="col">
+                <label>U段单元数 (推荐 3-6)</label>
+                <input type="number" id="eleU" value="4" min="2" max="10">
+            </div>
+        </div>
+        <button onclick="calculateDualBand()">生成双段尺寸表</button>
+        <div class="results" id="resultBox" style="display:none;">
+            <!-- 结果会在这里生成 -->
+        </div>
+    </div>
+
+    <script>
+        function calculateDualBand() {
+            const fV = parseFloat(document.getElementById('freqV').value);
+            const fU = parseFloat(document.getElementById('freqU').value);
+            const nV = parseInt(document.getElementById('eleV').value);
+            const nU = parseInt(document.getElementById('eleU').value);
+
+            if (fV <= 0 || fU <= 0 || nV < 2 || nU < 2) {
+                alert("请输入有效的频率和单元数 (至少2单元)");
+                return;
+            }
+
+            // 缩短系数通常取 0.95
+            const k = 0.95;
+
+            // --- 计算 V段 (2米) ---
+            const lambdaV = 300000 / fV;
+            const refV = (lambdaV / 2) * 1.05 * k; // 反射器
+            const drvV = (lambdaV / 2) * k;        // 有源振子
+            const dirV = (lambdaV / 2) * 0.92 * k; // 引向器
+            const spcRefV = lambdaV * 0.15;        // 反射器到有源
+            const spcDirV = lambdaV * 0.12;        // 引向器间距
+
+            // --- 计算 U段 (70厘米) ---
+            const lambdaU = 300000 / fU;
+            const refU = (lambdaU / 2) * 1.05 * k;
+            const drvU = (lambdaU / 2) * k;
+            const dirU = (lambdaU / 2) * 0.92 * k;
+            const spcRefU = lambdaU * 0.15;
+            const spcDirU = lambdaU * 0.12;
+
+            // --- 渲染 V段 HTML ---
+            let htmlV = `<div class="section"><h3>📻 V段 (${fV} MHz)</h3>`;
+            htmlV += `<div class="item"><strong>1. 反射器 (最长):</strong> ${refV.toFixed(1)} mm</div>`;
+            htmlV += `<div class="item"><strong>2. 有源振子 (<span class="highlight">需切断</span>):</strong> 总长 ${drvV.toFixed(1)} mm<br><span class="spacing">↳ 距反射器: ${spcRefV.toFixed(1)} mm</span></div>`;
+            
+            for (let i = 3; i <= nV; i++) {
+                let offset = 1.0 - ((i - 3) * 0.01);
+                let currentDir = dirV * offset;
+                htmlV += `<div class="item"><strong>${i}. 引向器:</strong> ${currentDir.toFixed(1)} mm<br><span class="spacing">↳ 距上一单元: ${spcDirV.toFixed(1)} mm</span></div>`;
+            }
+            htmlV += `</div>`;
+
+            // --- 渲染 U段 HTML ---
+            let htmlU = `<div class="section"><h3>📡 U段 (${fU} MHz)</h3>`;
+            htmlU += `<div class="item"><strong>1. 反射器 (最长):</strong> ${refU.toFixed(1)} mm</div>`;
+            htmlU += `<div class="item"><strong>2. 有源振子 (<span class="highlight">需切断</span>):</strong> 总长 ${drvU.toFixed(1)} mm<br><span class="spacing">↳ 距反射器: ${spcRefU.toFixed(1)} mm</span></div>`;
+            
+            for (let i = 3; i <= nU; i++) {
+                let offset = 1.0 - ((i - 3) * 0.01);
+                let currentDir = dirU * offset;
+                htmlU += `<div class="item"><strong>${i}. 引向器:</strong> ${currentDir.toFixed(1)} mm<br><span class="spacing">↳ 距上一单元: ${spcDirU.toFixed(1)} mm</span></div>`;
+            }
+            htmlU += `</div>`;
+
+            // 显示结果
+            const resultBox = document.getElementById('resultBox');
+            resultBox.innerHTML = htmlV + htmlU;
+            resultBox.style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
